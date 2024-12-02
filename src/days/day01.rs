@@ -1,34 +1,32 @@
+use core::panic;
+
+use crate::shared::*;
+
 pub fn run(input: String) {
     let mut left = Vec::new();
     let mut right = Vec::new();
 
-    // Parse out left and right arrays
-    input
-        .lines()
-        .map(
-            |line| match line.split(" ").filter(|x| x != &"").collect::<Vec<&str>>()[..] {
-                [l, r] => {
-                    let l = match str::parse::<u32>(l) {
-                        Err(why) => panic!("Could not parse {}: {}", l, why),
-                        Ok(l) => l,
-                    };
-                    let r = match str::parse::<u32>(r) {
-                        Err(why) => panic!("Could not parse {}: {}", r, why),
-                        Ok(r) => r,
-                    };
-                    left.push(l);
-                    right.push(r);
-                }
-                _ => {
-                    println!("Skipping reading in line: {line}");
-                }
-            },
-        )
+    // Parse input data
+    let parsed = match parse::<u32>(&input) {
+        Err(why) => panic!("Unable to parse input: {}", why),
+        Ok(parsed) => parsed,
+    };
+
+    // Format into left and right arrays
+    parsed
+        .iter()
+        .map(|line| {
+            if let [l, r] = line[..] {
+                left.push(l);
+                right.push(r);
+            }
+        })
         .for_each(drop);
 
     left.sort();
     right.sort();
 
+    // Total up distances
     let mut total: i64 = 0;
     std::iter::zip(left, right)
         .map(|(l, r)| {
