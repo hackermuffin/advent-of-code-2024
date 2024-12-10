@@ -7,7 +7,7 @@ pub fn run(input: String) {
     let mut right = Vec::new();
 
     // Parse input data
-    let parsed = match parse::<u32>(&input) {
+    let parsed = match parse::<u32>(&input, " ") {
         Err(why) => panic!("Unable to parse input: {}", why),
         Ok(parsed) => parsed,
     };

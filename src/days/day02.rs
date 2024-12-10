@@ -2,7 +2,7 @@ use crate::shared::*;
 
 pub fn run(input: String) {
     // Parse input data
-    let parsed = match parse::<u32>(&input) {
+    let parsed = match parse::<u32>(&input, " ") {
         Err(why) => panic!("Unable to parse input: {}", why),
         Ok(parsed) => parsed,
     };
