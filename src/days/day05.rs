@@ -1,4 +1,7 @@
 use std::collections::HashMap;
+use std::fmt;
+use std::io;
+use std::io::Write;
 
 use crate::shared::*;
 
@@ -38,49 +41,17 @@ impl Update {
         true
     }
 
-    fn reorder(&mut self, rules: &HashMap<u32, Vec<u32>>) {
-        let vec = &self.0;
+    fn reorder(&mut self, rules: &HashMap<u32, Vec<u32>>) -> Option<()> {
+        let graph = Graph::new(&self.0, rules);
+        let path = graph.longest_path()?;
+        self.0 = path.iter().map(|node| node.val).collect();
+        Some(())
+    }
 
-        fn bottom_node(vec: &Vec<u32>, rules: &HashMap<u32, Vec<u32>>) -> Option<usize> {
-            for (i, elem) in vec.iter().enumerate() {
-                let after = &vec[i..];
-                let prereq = rules.get(elem).expect("No dependencies");
-                let mut prereq_filter = prereq.iter().filter(|x| after.contains(x));
-                if prereq_filter.next().is_none() {
-                    return Some(i);
-                }
-            }
-            None
-        }
-
-        let x = vec.first().unwrap();
-        let after = &vec[1..];
-        if let Some(prereq) = rules.get(x) {
-            let filtered = prereq
-                .iter()
-                .filter(|x| after.contains(x))
-                .collect::<Vec<_>>();
-            println!("Val: {x}\n{vec:?}\n{filtered:?}");
-        };
-
-        //for i in 0..vec.len() {
-        //    let mut updates = true;
-        //    while updates {
-        //        updates = false;
-        //        let curr = vec.get(i).unwrap();
-        //        let after = &vec[i..];
-        //        let Some(req_pre) = rules.get(curr) else {
-        //            continue;
-        //        };
-
-        //        for x in after {
-        //            if req_pre.contains(x) {
-
-        //                // Move
-        //            }
-        //        }
-        //    }
-        //}
+    fn middle(&self) -> u32 {
+        let len = self.0.len();
+        let mid = len / 2;
+        *self.0.get(mid).unwrap()
     }
 }
 
@@ -122,22 +93,149 @@ impl PrintJob {
     }
 }
 
+#[derive(PartialEq, Eq)]
+struct Node<T> {
+    val: T,
+    links: Vec<usize>,
+}
+
+impl<T: std::fmt::Debug> fmt::Debug for Node<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "{:?} -> {:?}", self.val, self.links)
+    }
+}
+
+struct Graph<T> {
+    index: HashMap<T, usize>,
+    nodes: Vec<Node<T>>,
+}
+
+impl<T: std::fmt::Debug> fmt::Debug for Graph<T> {
+    fn fmt(&self, f: &mut fmt::Formatter) -> fmt::Result {
+        write!(f, "Nodes: {:?}\n{:?}", self.index, self.nodes)
+    }
+}
+
+impl<T: std::hash::Hash + std::cmp::Eq + Copy + std::fmt::Debug> Graph<T> {
+    fn new(input_nodes: &[T], rules: &HashMap<T, Vec<T>>) -> Self {
+        // Construct nodes & node mapping
+        let mut index = HashMap::new();
+        let mut nodes = Vec::new();
+        input_nodes.iter().for_each(|x| {
+            let node = Node {
+                val: *x,
+                links: Vec::new(),
+            };
+            nodes.push(node);
+            index.insert(*x, nodes.len() - 1);
+        });
+
+        // Construct links to other nodes
+        nodes.iter_mut().for_each(|node| {
+            if let Some(prereqs) = rules.get(&node.val) {
+                let links = &mut node.links;
+                prereqs
+                    .iter()
+                    .filter(|x| input_nodes.contains(x))
+                    .for_each(|prereq| {
+                        let curr_index = *index.get(prereq).unwrap();
+                        links.push(curr_index);
+                    });
+            };
+        });
+
+        Graph { index, nodes }
+    }
+
+    fn children(&self, target: &Node<T>) -> Option<Vec<&Node<T>>> {
+        let index = self.index.get(&target.val)?;
+        let node = self.nodes.get(*index)?;
+        node.links
+            .iter()
+            .map(|link| self.nodes.get(*link))
+            .collect::<Option<Vec<_>>>()
+    }
+
+    fn longest_path(&self) -> Option<Vec<&Node<T>>> {
+        //println!("Starting looking for longets path in:\n{self:?}");
+        let mut curr = vec![self.top_node()];
+        self.path(&mut curr)?;
+        //println!("Longest path found: {curr:?}");
+        Some(curr)
+    }
+
+    fn top_node(&self) -> &Node<T> {
+        let all_children = self
+            .nodes
+            .iter()
+            .flat_map(|node| self.children(node).unwrap())
+            .collect::<Vec<_>>();
+        let top_node_index = self
+            .nodes
+            .iter()
+            .map(|node| {
+                all_children
+                    .iter()
+                    .filter(|&x| x == &node)
+                    .collect::<Vec<_>>()
+                    .len()
+            })
+            .enumerate()
+            .find(|(_, b)| *b == 0)
+            .expect("Unable to find top node")
+            .0;
+        self.nodes.get(top_node_index).unwrap()
+    }
+
+    fn path<'a>(&'a self, curr: &mut Vec<&'a Node<T>>) -> Option<()> {
+        let last = curr.last().unwrap();
+        let children = self
+            .children(last)
+            .unwrap()
+            .into_iter()
+            .filter(|x| !curr.contains(x))
+            .collect::<Vec<_>>();
+
+        if children.is_empty() {
+            // Check if all nodes used
+            if curr.len() == self.nodes.len() {
+                Some(())
+            } else {
+                None
+            }
+        } else {
+            for child in children {
+                curr.push(child);
+                match self.path(curr) {
+                    Some(()) => return Some(()),
+                    None => curr.pop(),
+                };
+            }
+            None
+        }
+    }
+}
+
 pub fn run(input: String) {
     let mut job = PrintJob::new(input).expect("Unable to parse print job");
+    let len = job.updates.len();
 
-    let mut acc = 0;
-    for update in &mut job.updates {
+    println!("Job contains {len} updates");
+
+    let mut valid_acc = 0;
+    let mut reorder_acc = 0;
+    for (i, update) in &mut job.updates.iter_mut().enumerate() {
+        print!("\r{}%", (100 * i) / (len));
+        io::stdout().flush().expect("Failed to flush stdout");
         let valid = update.check(&job.rules);
         if valid {
-            let len = update.0.len();
-            let mid = len / 2;
-            let mid_elem = update.0.get(mid).unwrap();
-
-            acc += mid_elem;
+            valid_acc += update.middle()
         } else {
             update.reorder(&job.rules);
+            reorder_acc += update.middle()
         }
     }
 
-    println!("Valid pattern total: {acc:?}");
+    println!("Valid pattern total: {valid_acc:?}");
+    println!("Reordered pattern total: {reorder_acc:?}");
 }
