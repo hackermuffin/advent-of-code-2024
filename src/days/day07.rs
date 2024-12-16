@@ -1,6 +1,6 @@
 use std::fmt;
 
-#[derive(Debug)]
+#[derive(Debug, Clone)]
 struct Equation {
     target: u64,
     values: Vec<u32>,
@@ -32,15 +32,15 @@ impl Equation {
         Some(Equation { target, values })
     }
 
-    fn solve(self) -> Option<Solution> {
-        fn helper(partial: &mut PartialSolution) -> Option<Solution> {
+    fn solve(self, ops: &[Operator]) -> Option<Solution> {
+        fn helper(partial: &mut PartialSolution, ops: &[Operator]) -> Option<Solution> {
             if partial.values.len() - 1 == partial.ops.len() {
                 return partial.check();
             }
 
-            for op in Operator::iter() {
-                partial.push(op);
-                if let Some(sol) = helper(partial) {
+            for op in ops.into_iter() {
+                partial.push(*op);
+                if let Some(sol) = helper(partial, ops) {
                     return Some(sol);
                 };
                 partial.pop();
@@ -50,13 +50,14 @@ impl Equation {
         }
 
         let mut partial = PartialSolution::new(self);
-        helper(&mut partial)
+        helper(&mut partial, ops)
     }
 }
 
 #[derive(Clone, Copy, Debug)]
 enum Operator {
     Add,
+    Concat,
     Mul,
 }
 
@@ -66,40 +67,57 @@ impl fmt::Display for Operator {
             f,
             "{}",
             match self {
-                Self::Add => '+',
-                Self::Mul => '*',
+                Self::Add => "+",
+                Self::Concat => "||",
+                Self::Mul => "*",
             }
         )
     }
 }
 
 impl Operator {
-    fn iter() -> impl Iterator<Item = Self> {
-        [Self::Add, Self::Mul].into_iter()
-    }
     fn get_fn<
-        A: std::ops::Add<Output = C> + std::ops::Mul<Output = C> + std::convert::From<B>,
-        B,
-        C,
+        A: std::ops::Add<Output = C>
+            + std::ops::Mul<Output = C>
+            + std::convert::From<B>
+            + fmt::Display,
+        B: fmt::Display,
+        C: std::str::FromStr,
     >(
         &self,
-    ) -> impl Fn(A, B) -> C {
+    ) -> impl Fn(A, B) -> C
+    where
+        <C as std::str::FromStr>::Err: fmt::Debug,
+    {
         match self {
             Self::Add => |l, r| l + B::into(r),
+            Self::Concat => |l: A, r: B| str::parse::<C>(&format!("{l}{r}")).unwrap(),
             Self::Mul => |l, r| l * B::into(r),
         }
     }
 
     fn get_undo<
-        A: std::ops::Sub<Output = C> + std::ops::Div<Output = C> + std::convert::From<B>,
-        B,
-        C,
+        A: std::ops::Sub<Output = C>
+            + std::ops::Div<Output = C>
+            + std::convert::From<B>
+            + fmt::Display,
+        B: fmt::Display,
+        C: std::str::FromStr,
     >(
         &self,
-    ) -> impl Fn(A, B) -> C {
+    ) -> impl Fn(A, B) -> C
+    where
+        <C as std::str::FromStr>::Err: fmt::Debug,
+    {
         match self {
             Self::Add => |l, r| l - B::into(r),
             Self::Mul => |l, r| l / B::into(r),
+            Self::Concat => |l, r| {
+                let rlen = format!("{r}").len();
+                let l = format!("{l}");
+                let res = &l[..l.len() - rlen];
+                str::parse(res).expect("Unable to undo concat")
+            },
         }
     }
 }
@@ -212,13 +230,23 @@ pub fn run(input: String) {
         .expect("Unable to parse input");
 
     let solutions = equations
+        .clone()
         .into_iter()
-        .map(|eq| eq.solve())
+        .map(|eq| eq.solve(&[Operator::Add, Operator::Mul]))
+        .filter(|x| x.is_some())
+        .collect::<Option<Vec<_>>>()
+        .unwrap();
+
+    let solutions_concat = equations
+        .into_iter()
+        .map(|eq| eq.solve(&[Operator::Add, Operator::Concat, Operator::Mul]))
         .filter(|x| x.is_some())
         .collect::<Option<Vec<_>>>()
         .unwrap();
 
     let target_total: u64 = solutions.iter().map(|x| x.target).sum();
+    let target_total_contcat: u64 = solutions_concat.iter().map(|x| x.target).sum();
 
-    println!("Total valid targets: {target_total}")
+    println!("Total valid targets: {target_total}");
+    println!("Total valid targets with concat: {target_total_contcat}");
 }
