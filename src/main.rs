@@ -6,7 +6,7 @@ use std::io::Read;
 use std::path::Path;
 
 mod days;
-mod shared;
+pub mod shared;
 
 #[derive(Parser)]
 struct Args {
