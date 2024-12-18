@@ -44,11 +44,11 @@ impl<T: FromStr, const N: usize> Grid<T, N> {
 
 impl<T, const N: usize> Grid<T, N> {
     pub fn get(&self, coord: &Coord<N>) -> &T {
-        &self.0[coord.x][coord.y]
+        &self.0[coord.y][coord.x]
     }
 
     pub fn set(&mut self, val: T, coord: Coord<N>) {
-        self.0[coord.x][coord.y] = val;
+        self.0[coord.y][coord.x] = val;
     }
 
     pub fn iter(&self) -> impl Iterator<Item = &T> {
