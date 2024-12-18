@@ -44,10 +44,6 @@ impl DiskMap {
         }
     }
 
-    fn len(&self) -> u32 {
-        self.data.iter().map(|block| block.len()).sum()
-    }
-
     fn raw_blocks(&self) -> Vec<Option<u32>> {
         let mut arr = Vec::new();
         for block in self.data.iter() {
