@@ -24,6 +24,17 @@ pub struct Coord<const N: usize> {
     x: usize,
     y: usize,
 }
+#[derive(Clone, Copy, Debug, PartialEq, Eq)]
+pub enum Direction {
+    Up,
+    UpRight,
+    Right,
+    DownRight,
+    Down,
+    DownLeft,
+    Left,
+    UpLeft,
+}
 
 impl<T: FromStr, const N: usize> Grid<T, N> {
     pub fn new(input: &str, deliminator: &str) -> Option<Self> {
@@ -99,6 +110,21 @@ impl<const N: usize> Coord<N> {
     pub fn y(&self) -> usize {
         self.y
     }
+
+    pub fn next(&self, dir: Direction) -> Option<Coord<N>> {
+        let (x, y) = (self.x as i64, self.y as i64);
+        let (x, y) = match dir {
+            Direction::Up => (x, y - 1),
+            Direction::UpRight => (x + 1, y - 1),
+            Direction::Right => (x + 1, y),
+            Direction::DownRight => (x + 1, y + 1),
+            Direction::Down => (x, y + 1),
+            Direction::DownLeft => (x - 1, y + 1),
+            Direction::Left => (x - 1, y),
+            Direction::UpLeft => (x - 1, y - 1),
+        };
+        (x, y).try_into().ok()
+    }
 }
 
 impl<const N: usize> std::ops::Add for Coord<N> {
@@ -125,6 +151,18 @@ impl<const N: usize> std::convert::TryFrom<(i64, i64)> for Coord<N> {
             Some(coord) => Ok(coord),
             None => Err(<u8 as TryFrom<u16>>::try_from(300).unwrap_err()),
         }
+    }
+}
+
+impl Direction {
+    pub fn orthogonal() -> impl Iterator<Item = Direction> {
+        vec![
+            Direction::Up,
+            Direction::Right,
+            Direction::Down,
+            Direction::Left,
+        ]
+        .into_iter()
     }
 }
 
