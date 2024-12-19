@@ -69,10 +69,19 @@ impl<const N: usize> Map<N> {
     fn total_score(&self) -> usize {
         self.find(0).iter().map(|x| self.score(*x)).sum()
     }
+
+    fn rating(&self, start: Coord<N>) -> usize {
+        self.paths(start).len()
+    }
+
+    fn total_rating(&self) -> usize {
+        self.find(0).iter().map(|x| self.rating(*x)).sum()
+    }
 }
 
 pub fn run(input: String) {
     const N: usize = 57;
     let map = Map::<N>::new(&input).expect("Unable to parse map");
     println!("Total score: {}", map.total_score());
+    println!("Total rating: {}", map.total_rating());
 }
