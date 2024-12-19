@@ -183,3 +183,30 @@ impl<const N: usize> fmt::Display for Coord<N> {
         write!(f, "({},{})", self.x, self.y)
     }
 }
+
+pub struct Cache<K: std::cmp::Eq + std::hash::Hash, V>(std::collections::HashMap<K, V>);
+
+impl<K: std::cmp::Eq + std::hash::Hash, V> Cache<K, V> {
+    pub fn new() -> Self {
+        Cache(std::collections::HashMap::new())
+    }
+
+    pub fn get(&self, key: &K) -> Option<&V> {
+        self.0.get(key)
+    }
+}
+
+impl<K: std::cmp::Eq + std::hash::Hash + Clone, V: Clone> Cache<K, V> {
+    pub fn get_or_set<F>(&mut self, key: K, func: F) -> V
+    where
+        F: FnOnce() -> V,
+    {
+        if let Some(value) = self.get(&key) {
+            value.clone()
+        } else {
+            let value = func();
+            self.0.insert(key.clone(), value);
+            self.0.get(&key).unwrap().clone()
+        }
+    }
+}
