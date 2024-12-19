@@ -53,6 +53,12 @@ impl<T: FromStr, const N: usize> Grid<T, N> {
     }
 }
 
+impl<T: FromStr + Copy, const N: usize> Grid<T, N> {
+    pub fn fill(val: T) -> Self {
+        Grid([[val; N]; N])
+    }
+}
+
 impl<T, const N: usize> Grid<T, N> {
     pub fn get(&self, coord: &Coord<N>) -> &T {
         &self.0[coord.y][coord.x]
@@ -66,7 +72,7 @@ impl<T, const N: usize> Grid<T, N> {
         self.0.iter().flat_map(|x| x.iter())
     }
 
-    fn enumerate(&self) -> Vec<(Coord<N>, &T)> {
+    pub fn enumerate(&self) -> Vec<(Coord<N>, &T)> {
         self.0
             .iter()
             .enumerate()
