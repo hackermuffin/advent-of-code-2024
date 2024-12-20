@@ -1,4 +1,5 @@
 use crate::shared::*;
+use core::panic;
 use std::fmt;
 
 struct Garden<const N: usize>(Grid<char, N>);
@@ -78,8 +79,127 @@ impl<const N: usize> Region<N> {
         self.0.len()
     }
 
+    fn sides(&self, garden: &Garden<N>) -> usize {
+        // Calculate the next step from an edge
+        enum NextStep {
+            Continue,
+            Clockwise,
+            AntiClockwise,
+        }
+
+        // Requires a coord on the edge, and a direction of that edge
+        fn next_step<const M: usize>(
+            garden: &Garden<M>,
+            inside: &Coord<M>,
+            edge_dir: &Direction,
+        ) -> NextStep {
+            let region_char = *garden.get(inside);
+            let next_side_coord = inside.next(side_direction(*edge_dir));
+            if let Some(outside) = inside.next(*edge_dir) {
+                // Not outside edge
+                if let Some(next_side_coord) = next_side_coord {
+                    // Random mid square, check values
+                    let next_side = *garden.get(&next_side_coord);
+                    let next_side_outside =
+                        *garden.get(&outside.next(side_direction(*edge_dir)).unwrap());
+                    match (next_side == region_char, next_side_outside == region_char) {
+                        (true, false) => NextStep::Continue,
+                        (true, true) => NextStep::AntiClockwise,
+                        (_, _) => NextStep::Clockwise,
+                    }
+                } else {
+                    // Hit an edge, turn
+                    NextStep::Clockwise
+                }
+            } else {
+                // Outside edge, just check if next cell is valid
+                if let Some(next_side_coord) = next_side_coord {
+                    if *garden.get(&next_side_coord) == region_char {
+                        return NextStep::Continue;
+                    }
+                }
+                NextStep::Clockwise
+            }
+        }
+
+        // Function to find side dir given outside dir
+        fn side_direction(dir: Direction) -> Direction {
+            match dir {
+                Direction::Up => Direction::Right,
+                Direction::Right => Direction::Down,
+                Direction::Down => Direction::Left,
+                Direction::Left => Direction::Up,
+                _ => panic!("Invalid outside direction, must be orthogonal"),
+            }
+        }
+
+        // Track which edges has been explored
+        let region_char = *garden.get(self.0.first().expect("Cannot find sides of empty region"));
+        let mut unexplored = self
+            .0
+            .iter()
+            .flat_map(|coord| {
+                Direction::orthogonal().filter_map(|dir| match coord.next(dir) {
+                    Some(adj) => {
+                        if *garden.get(&adj) == region_char {
+                            None
+                        } else {
+                            Some((*coord, dir))
+                        }
+                    }
+                    None => Some((*coord, dir)),
+                })
+            })
+            .collect::<Vec<_>>();
+
+        let mut count = 0;
+        while let Some((start, start_dir)) = unexplored.first() {
+            let start = *start;
+            let start_dir = *start_dir;
+
+            // Starting values
+            let mut curr = start;
+            let mut outside_dir = start_dir;
+
+            loop {
+                // Note down that this is explored
+                unexplored.retain(|x| *x != (curr, outside_dir));
+                match next_step(garden, &curr, &outside_dir) {
+                    NextStep::Continue => {
+                        let side_dir = side_direction(outside_dir);
+                        curr = curr.next(side_dir).unwrap();
+                    }
+                    NextStep::Clockwise => {
+                        outside_dir = side_direction(outside_dir);
+                        count += 1
+                    }
+                    NextStep::AntiClockwise => {
+                        // Eww
+                        let side_dir = side_direction(outside_dir);
+                        curr = curr.next(side_dir).unwrap();
+                        curr = curr.next(outside_dir).unwrap();
+                        outside_dir = side_direction(outside_dir);
+                        outside_dir = side_direction(outside_dir);
+                        outside_dir = side_direction(outside_dir);
+                        count += 1
+                    }
+                }
+
+                if curr == start && outside_dir == start_dir {
+                    break;
+                }
+            }
+        }
+
+        count
+    }
+
     fn cost(&self, garden: &Garden<N>) -> usize {
         self.perimiter(garden) * self.area()
+    }
+
+    fn discount_cost(&self, garden: &Garden<N>) -> usize {
+        self.sides(garden) * self.area()
     }
 }
 
@@ -93,8 +213,14 @@ impl<const N: usize> fmt::Display for Region<N> {
 
 pub fn run(input: String) {
     const N: usize = 140;
+    //const N: usize = 6;
     let garden = Garden::<N>::new(&input).expect("Unable to parse garden");
     let regions = garden.regions();
     let total: usize = regions.iter().map(|region| region.cost(&garden)).sum();
     println!("Total cost: {}", total);
+    let total: usize = regions
+        .iter()
+        .map(|region| region.discount_cost(&garden))
+        .sum();
+    println!("Discounted cost is: {}", total);
 }
