@@ -216,3 +216,49 @@ impl<K: std::cmp::Eq + std::hash::Hash + Clone, V: Clone> Cache<K, V> {
         }
     }
 }
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct Vector<T> {
+    pub x: T,
+    pub y: T,
+}
+
+impl<T: std::ops::Add<Output = T>> std::ops::Add for Vector<T> {
+    type Output = Self;
+    fn add(self, rhs: Self) -> Self::Output {
+        Vector {
+            x: self.x + rhs.x,
+            y: self.y + rhs.y,
+        }
+    }
+}
+
+impl<T: std::ops::Sub<Output = T>> std::ops::Sub for Vector<T> {
+    type Output = Self;
+    fn sub(self, rhs: Self) -> Self::Output {
+        Vector {
+            x: self.x - rhs.x,
+            y: self.y - rhs.y,
+        }
+    }
+}
+
+impl<T: std::ops::Mul<u64, Output = T>> std::ops::Mul<u64> for Vector<T> {
+    type Output = Self;
+    fn mul(self, rhs: u64) -> Self::Output {
+        Vector {
+            x: self.x * rhs,
+            y: self.y * rhs,
+        }
+    }
+}
+
+impl<T: std::ops::Div<Output = T>> std::ops::Div for Vector<T> {
+    type Output = Self;
+    fn div(self, rhs: Self) -> Self::Output {
+        Vector {
+            x: self.x / rhs.x,
+            y: self.y / rhs.y,
+        }
+    }
+}

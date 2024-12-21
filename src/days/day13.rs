@@ -1,9 +1,11 @@
-use std::ops::Div;
+#[derive(Debug, Clone, Copy)]
+struct Vector(crate::shared::Vector<u64>);
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-struct Vector {
-    x: u64,
-    y: u64,
+impl std::ops::Deref for Vector {
+    type Target = crate::shared::Vector<u64>;
+    fn deref(&self) -> &Self::Target {
+        &self.0
+    }
 }
 
 impl Vector {
@@ -12,51 +14,11 @@ impl Vector {
         let x = str::parse(x_str.trim_start_matches(|c| !char::is_ascii_digit(&c))).ok()?;
         let y = str::parse(y_str.trim_start_matches(|c| !char::is_ascii_digit(&c))).ok()?;
 
-        Some(Vector { x, y })
+        Some(Vector(crate::shared::Vector { x, y }))
     }
 
     fn signed(&self) -> (i64, i64) {
         (self.x as i64, self.y as i64)
-    }
-}
-
-impl std::ops::Add for Vector {
-    type Output = Vector;
-    fn add(self, rhs: Self) -> Self::Output {
-        Vector {
-            x: self.x + rhs.x,
-            y: self.y + rhs.y,
-        }
-    }
-}
-
-impl std::ops::Sub for Vector {
-    type Output = Vector;
-    fn sub(self, rhs: Self) -> Self::Output {
-        Vector {
-            x: self.x - rhs.x,
-            y: self.y - rhs.y,
-        }
-    }
-}
-
-impl std::ops::Mul<u64> for Vector {
-    type Output = Vector;
-    fn mul(self, rhs: u64) -> Self::Output {
-        Vector {
-            x: self.x * rhs,
-            y: self.y * rhs,
-        }
-    }
-}
-
-impl Div for Vector {
-    type Output = Self;
-    fn div(self, rhs: Self) -> Self::Output {
-        Vector {
-            x: self.x / rhs.x,
-            y: self.y / rhs.y,
-        }
     }
 }
 
@@ -80,7 +42,7 @@ impl Claw {
     fn solve(&self) -> Option<(u64, u64)> {
         let b_mul = self.solve_b_coeff()?;
         let a_mul = (self.prize.x - self.b.x * b_mul) / self.a.x;
-        let target = self.a * a_mul + self.b * b_mul;
+        let target = *self.a * a_mul + *self.b * b_mul;
 
         if target.y == self.prize.y {
             Some((a_mul, b_mul))
@@ -112,11 +74,13 @@ impl Claw {
         let long = Claw {
             a: self.a,
             b: self.b,
-            prize: self.prize
-                + Vector {
-                    x: 10000000000000,
-                    y: 10000000000000,
-                },
+            prize: Vector(
+                *self.prize
+                    + crate::shared::Vector {
+                        x: 10000000000000,
+                        y: 10000000000000,
+                    },
+            ),
         };
 
         long.solve()
